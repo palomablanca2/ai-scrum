@@ -1,9 +1,17 @@
 import streamlit as st
 import anthropic
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()ZZ
 
 # Init API
-client = anthropic.Anthropic(api_key="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")
 
+client = OpenAI(
+    api_key=os.getenv("DEEPSEEK_API_KEY"),  # ← vervang dit met jouw DeepSeek sleutel
+    base_url="https://api.deepseek.com/v1"  # ← belangrijk!
+)
 # Claude Agent functies
 def agent_1(prompt):
     user_input = f"""Je bent een product owner en schrijf een user story vanuit eindgebruikersperspectief. Geef een eerste voorstel gebaseerd op de volgende input.
@@ -11,12 +19,13 @@ def agent_1(prompt):
 Input:
 {prompt}
 """
-    message = client.messages.create(
-        model="claude-3-7-sonnet-20250219",
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": user_input}],
         max_tokens=1000,
-        messages=[{"role": "user", "content": user_input}]
+        temperature=0.7,
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 def agent_2(prompt, agent1_output):
     user_input = f"""Je bent een senior developer en evalueert en verbetert de user story vanuit technisch perspectief. Geef feedback op het voorstel van de product owner waar nodig.
@@ -27,12 +36,13 @@ Input:
 Voorstel van Agent 1:
 {agent1_output}
 """
-    message = client.messages.create(
-        model="claude-3-7-sonnet-20250219",
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": user_input}],
         max_tokens=1000,
-        messages=[{"role": "user", "content": user_input}]
+        temperature=0.7,
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 def agent_3_arbiter(prompt, agent1_output, agent2_output):
     user_input = f"""Je bent een software tester , Vergelijk het originele voorstel van Agent 1 met de verbeterde versie van Agent 2.
@@ -49,12 +59,13 @@ Voorstel van Agent 1:
 Verbetering door Agent 2:
 {agent2_output}
 """
-    message = client.messages.create(
-        model="claude-3-7-sonnet-20250219",
-        max_tokens=3000,
-        messages=[{"role": "user", "content": user_input}]
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": user_input}],
+        max_tokens=1000,
+        temperature=0.7,
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 # 🧩 Scrum Master functie: splits user story in subtaken
 def split_story(story_output):
@@ -65,17 +76,18 @@ Je bent een ervaren Scrum Master. Hier is een uitgewerkte user story met testsce
 
 Splits deze user story op in overzichtelijke, logische subtaken, stories of epics. Geef duidelijke taakomschrijvingen in een genummerde lijst.
 """
-    message = client.messages.create(
-        model="claude-3-7-sonnet-20250219",
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": user_input}],
         max_tokens=1000,
-        messages=[{"role": "user", "content": user_input}]
+        temperature=0.7,
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 # Streamlit UI
 st.set_page_config(page_title="AI Scrum refinement Demo", layout="wide")
 st.title("🤖 Ai Scrum team in Gesprek")
-st.write("Voer een prompt in en zie hoe drie Claude scrum AI agenten samenwerken.")
+st.write("Voer een prompt in en zie hoe drie DeepSeek scrum AI agenten samenwerken.")
 
 user_prompt = st.text_area("✍️ Jouw prompt:", height=150)
 
@@ -121,7 +133,7 @@ if st.button("Start samenwerking"):
         st.markdown(subtasks_response)
 
         # Downloadknop
-        data = "Product owner Voorstel\n\n" + agent1_response + "\n\n\n\nSenior developer Verbetering\n\n" + agent2_response + "\n\n\n\nEindvoorstel en evaluatie door software tester\n\n" + arbiter_response+ "\n\n\n\nSenior developer Verbetering\n\n" + agent2_response + "\n\n\n\nOpsplitsing in subtaken door de Scrummaster\n\n" +  subtasks_response
+        data = "Product owner Voorstel\n\n" + agent1_response + "\n\n\n\nSenior developer Verbetering\n\n" + agent2_response + "\n\n\n\nEindvoorstel en evaluatie door software tester\n\n" + arbiter_response + "\n\n\n\nOpsplitsing in subtaken door de Scrummaster\n\n" +  subtasks_response
 
         if arbiter_response:
             st.download_button(
