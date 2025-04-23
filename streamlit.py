@@ -115,12 +115,6 @@ if "subtaken_response" not in st.session_state:
 st.set_page_config(page_title="AI Scrum refinement Tool", layout="wide")
 st.title("🤖 AI Scrum Team Assistent")
 
-# Sidebar Sprint info
-st.sidebar.header("📂 Sprintplanning")
-sprint_nummer = st.sidebar.selectbox("Sprint:", [1, 2, 3, 4, 5])
-storypoints = st.sidebar.slider("Story Points:", 1, 13, 5)
-velocity = st.sidebar.slider("Team Velocity (points/sprint):", 5, 30, 20)
-
 # Prompt invoer
 st.write("Voer een prompt in en zie hoe de Scrum AI teamleden samenwerken.")
 user_prompt = st.text_area("✍️ Jouw prompt:", height=150)
@@ -156,13 +150,6 @@ if st.session_state.arbiter_response:
     st.markdown(st.session_state.teamlid2_response)
     st.markdown("### ⚖️ Tester Eindversie en evaluatie")
     st.markdown(st.session_state.arbiter_response)
-
-    st.subheader("🗞️ Sprintplanning")
-    st.markdown(f"""
-    - **Sprint:** {sprint_nummer}  
-    - **Story Points:** {storypoints}  
-    - **Geschatte doorlooptijd:** {round(storypoints / velocity * 7, 1)} dagen
-    """)
 
     if st.button("🔍 Splits user story op in subtaken"):
         with st.spinner("Splitsen in subtaken..."):
