@@ -2,7 +2,7 @@ import streamlit as st
 import anthropic
 
 # Init API
-client = anthropic.Anthropic(api_key="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")
+client = anthropic.Anthropic(api_key="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")
 
 # Claude Agent functies
 def agent_1(prompt):
