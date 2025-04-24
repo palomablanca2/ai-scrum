@@ -3,3 +3,7 @@ anthropic
 dotenv
 openai
 graphviz
+sentence-transformers 
+chromadb
+
+
