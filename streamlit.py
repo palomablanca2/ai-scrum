@@ -389,3 +389,5 @@ with tab_chat:
                     st.divider()
             else:
                 st.write("Nog geen chat geschiedenis")
+
+                #einde
