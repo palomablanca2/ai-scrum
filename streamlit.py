@@ -23,7 +23,7 @@ def teamlid_1(prompt):
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": user_input}],
-        max_tokens=1000
+        max_tokens=5000
     )
     return response.choices[0].message.content
 
@@ -40,7 +40,7 @@ def teamlid_2(prompt, teamlid1_output):
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": user_input}],
-        max_tokens=1000
+        max_tokens=5000
     )
     return response.choices[0].message.content
 
@@ -64,7 +64,7 @@ def teamlid_3_arbiter(prompt, teamlid1_output, teamlid2_output):
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": user_input}],
-        max_tokens=2000
+        max_tokens=5000
     )
     return response.choices[0].message.content
 
@@ -75,7 +75,7 @@ def split_story(final_story):
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": user_input}],
-        max_tokens=800
+        max_tokens=5000
     )
     return response.choices[0].message.content
 
@@ -89,7 +89,7 @@ def chat_with_teamlid(role, vraag):
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": user_input}],
-        max_tokens=800
+        max_tokens=5000
     )
     return response.choices[0].message.content
 
@@ -113,6 +113,27 @@ def analyse_acceptatiecriteria(final_story):
     )
     return response.choices[0].message.content
 
+# Nieuwe functie voor het verfijnen van de user story
+def verfijn_user_story(final_story, verfijnings_prompt):
+    user_input = f"""Je bent een ervaren agile coach. Verfijn en scherp de volgende user story aan 
+    op basis van de gegeven feedback:
+
+    Huidige user story:
+    {final_story}
+
+    Gewenste aanpassingen/verfijning:
+    {verfijnings_prompt}
+
+    Geef een verbeterde versie van de user story met de gevraagde aanpassingen verwerkt.
+    Behoud het format en de structuur, maar verbeter de inhoud volgens de feedback.
+    """
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": user_input}],
+        max_tokens=5000
+    )
+    return response.choices[0].message.content
+
 # Init session state
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -123,7 +144,8 @@ if "current_responses" not in st.session_state:
         "teamlid2": "",
         "arbiter": "",
         "subtaken": "",
-        "acceptatie": ""
+        "acceptatie": "",
+        "verfijnd": ""  # Nieuwe sleutel voor verfijnde versie
     }
     
 if "chat_history" not in st.session_state:
@@ -144,6 +166,10 @@ with st.sidebar:
             with st.expander(f"📝 {item['timestamp']}", expanded=False):
                 st.markdown(f"**Prompt:**")
                 st.text(item['prompt'][:200] + ("..." if len(item['prompt']) > 200 else ""))
+                
+                # Toon of er een verfijnde versie beschikbaar is
+                if item['responses'].get('verfijnd'):
+                    st.markdown("🌟 _Bevat verfijnde versie_")
                 
                 col1, col2 = st.columns([3,1])
                 with col1:
@@ -182,7 +208,8 @@ with tab_main:
                         "teamlid2": "",
                         "arbiter": "",
                         "subtaken": "",
-                        "acceptatie": ""
+                        "acceptatie": "",
+                        "verfijnd": ""  # Nieuwe sleutel voor de verfijnde versie
                     }
                 })
                 
@@ -218,7 +245,13 @@ with tab_main:
     if st.session_state.current_responses["arbiter"]:
         st.subheader("🧠 Resultaten van het Team")
         
-        tab_po, tab_dev, tab_test = st.tabs(["🧩 Product Owner", "🔧 Developer", "⚖️ Tester"])
+        # Controleren of er een verfijnde versie is voor de tab-selectie
+        if st.session_state.current_responses["verfijnd"]:
+            tab_po, tab_dev, tab_test, tab_verfijnd = st.tabs(["🧩 Product Owner", "🔧 Developer", "⚖️ Tester", "✨ Verfijnde Versie"])
+            with tab_verfijnd:
+                st.markdown(st.session_state.current_responses["verfijnd"])
+        else:
+            tab_po, tab_dev, tab_test = st.tabs(["🧩 Product Owner", "🔧 Developer", "⚖️ Tester"])
         
         with tab_po:
             st.markdown(st.session_state.current_responses["teamlid1"])
@@ -228,25 +261,79 @@ with tab_main:
         
         with tab_test:
             st.markdown(st.session_state.current_responses["arbiter"])
-
+            
+            # Voeg de verfijningssectie alleen toe in de tester tab
+            st.divider()
+            st.subheader("🔍 User Story verfijnen")
+            
+            verfijnings_prompt = st.text_area(
+                "Geef aan hoe je de eindversie wilt verfijnen of aanvullen:", 
+                height=100, 
+                key="verfijnings_prompt",
+                placeholder="Bijv: Voeg meer details toe over gebruikersauthenticatie, focus meer op performance eisen, etc."
+            )
+            
+            # Kies de bron voor verfijning (origineel of al verfijnde versie)
+            verfijn_bron = st.session_state.current_responses["verfijnd"] if st.session_state.current_responses["verfijnd"] else st.session_state.current_responses["arbiter"]
+            
+            if st.button("Verfijn User Story"):
+                if verfijnings_prompt:
+                    with st.spinner("Bezig met verfijnen..."):
+                        verfijnd_resultaat = verfijn_user_story(
+                            verfijn_bron, 
+                            verfijnings_prompt
+                        )
+                        
+                        # Bewaar de verfijnde versie
+                        st.session_state.current_responses["verfijnd"] = verfijnd_resultaat
+                        
+                        # Update de historie
+                        if st.session_state.history:
+                            st.session_state.history[-1]["responses"]["verfijnd"] = verfijnd_resultaat
+                        
+                        st.success("✅ User story verfijnd!")
+                    
+                    # Toon het verfijnde resultaat
+                    st.subheader("📝 Verfijnde User Story")
+                    st.markdown(verfijnd_resultaat)
+                    
+                    # Voeg een knop toe om te rerunnen voor het toevoegen van de nieuwe tab
+                    st.button("Vernieuw weergave", on_click=st.rerun)
+        
         # Actieknoppen onder resultaten
         col1, col2 = st.columns(2)
         
         with col1:
             if st.button("🔍 Splits user story op in subtaken"):
+                # Gebruik de verfijnde versie als die beschikbaar is, anders de originele
+                story_to_split = st.session_state.current_responses["verfijnd"] if st.session_state.current_responses["verfijnd"] else st.session_state.current_responses["arbiter"]
+                
                 with st.spinner("Splitsen in subtaken..."):
-                    st.session_state.current_responses["subtaken"] = split_story(st.session_state.current_responses["arbiter"])
+                    st.session_state.current_responses["subtaken"] = split_story(story_to_split)
+                    
+                    # Update historie
+                    if st.session_state.history:
+                        st.session_state.history[-1]["responses"]["subtaken"] = st.session_state.current_responses["subtaken"]
+                
                 st.subheader("📌 Opgesplitste Subtaken")
                 st.markdown(st.session_state.current_responses["subtaken"])
                 st.graphviz_chart(build_story_map(user_prompt, st.session_state.current_responses["subtaken"]))
         
         with col2:
             if st.button("📜 Genereer acceptatiecriteria in Gherkin-formaat"):
+                # Gebruik de verfijnde versie als die beschikbaar is, anders de originele
+                story_for_criteria = st.session_state.current_responses["verfijnd"] if st.session_state.current_responses["verfijnd"] else st.session_state.current_responses["arbiter"]
+                
                 with st.spinner("Genereren van acceptatiecriteria..."):
-                    st.session_state.current_responses["acceptatie"] = analyse_acceptatiecriteria(st.session_state.current_responses["arbiter"])
+                    st.session_state.current_responses["acceptatie"] = analyse_acceptatiecriteria(story_for_criteria)
+                    
+                    # Update historie
+                    if st.session_state.history:
+                        st.session_state.history[-1]["responses"]["acceptatie"] = st.session_state.current_responses["acceptatie"]
+                
                 st.subheader("✅ Acceptatiecriteria")
                 st.code(st.session_state.current_responses["acceptatie"], language="gherkin")
-
+        
         # Download knoppen
         st.divider()
         st.subheader("📥 Download Resultaten")
@@ -254,8 +341,13 @@ with tab_main:
         download_col1, download_col2, download_col3 = st.columns(3)
         
         with download_col1:
-            download_txt = f"Product Owner:\n{st.session_state.current_responses['teamlid1']}\n\nSenior Developer:\n{st.session_state.current_responses['teamlid2']}\n\nTester:\n{st.session_state.current_responses['arbiter']}"
-            st.download_button("Download eindversie", download_txt, file_name="eindversie.txt")
+            # Pas de download-inhoud aan om de verfijnde versie op te nemen indien beschikbaar
+            if st.session_state.current_responses["verfijnd"]:
+                download_txt = f"Product Owner:\n{st.session_state.current_responses['teamlid1']}\n\nSenior Developer:\n{st.session_state.current_responses['teamlid2']}\n\nTester:\n{st.session_state.current_responses['arbiter']}\n\nVerfijnde versie:\n{st.session_state.current_responses['verfijnd']}"
+                st.download_button("Download eindversie (incl. verfijnd)", download_txt, file_name="eindversie_compleet.txt")
+            else:
+                download_txt = f"Product Owner:\n{st.session_state.current_responses['teamlid1']}\n\nSenior Developer:\n{st.session_state.current_responses['teamlid2']}\n\nTester:\n{st.session_state.current_responses['arbiter']}"
+                st.download_button("Download eindversie", download_txt, file_name="eindversie.txt")
         
         with download_col2:
             if st.session_state.current_responses["subtaken"]:
